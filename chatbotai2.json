@@ -1,0 +1,149 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "public": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        304,
+        176
+      ],
+      "id": "76c96c32-d3ab-45fd-bf02-cfb5199445b6",
+      "name": "When chat message received",
+      "webhookId": "9f682b05-dcb5-4131-bcb1-22453e89e381"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=Kamu adalah chatbot informasi program pelatihan.\n\nTugas kamu adalah membantu pengguna mendapatkan informasi tentang program pelatihan berdasarkan data yang tersedia di Google Sheets.\n\nInformasi yang dapat diberikan meliputi:\n- Nama atau jenis pelatihan\n- Deskripsi atau topik yang dipelajari\n- Biaya atau harga pelatihan\n\nGunakan Google Sheets sebagai sumber utama informasi. Jika pengguna menanyakan informasi tentang suatu pelatihan, gunakan data dari Google Sheets untuk mencari jawabannya.\n\nJangan mengarang atau membuat informasi yang tidak terdapat di Google Sheets.\n\nJika data pelatihan yang ditanyakan tidak ditemukan, katakan bahwa informasi tersebut tidak tersedia dalam data.\n\nJawab dengan bahasa Indonesia yang jelas, singkat, dan mudah dipahami.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        624,
+        96
+      ],
+      "id": "479b99ed-3813-443a-b543-5a78974e54af",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        672,
+        304
+      ],
+      "id": "519bf658-2308-4e9a-bd48-d64a92ae3591",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1RFkTybxEG7QFVE1SX-kq90sX99tnSPUFmCxekXmXEPk",
+          "mode": "list",
+          "cachedResultName": "Salinan harga produk",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RFkTybxEG7QFVE1SX-kq90sX99tnSPUFmCxekXmXEPk/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1RFkTybxEG7QFVE1SX-kq90sX99tnSPUFmCxekXmXEPk/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        784,
+        304
+      ],
+      "id": "fc745637-74f1-42cd-a767-66f90da61000",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.8-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        336
+      ],
+      "id": "9a0ea9e4-6928-4d08-9044-be9a6f311d5d",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "TzOhzQeWedG9zsAK",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  }
+}
