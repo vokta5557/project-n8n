@@ -1,0 +1,389 @@
+{
+  "name": "Tugas 20 oktober",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -320,
+        32
+      ],
+      "id": "a2af8967-116e-40ab-828c-787cf4e9c131",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mpM8IvdeGSbMMoXE",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.snippet }}",
+                    "rightValue": "IDCloudHost",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    },
+                    "id": "8ce55b95-2a1c-4c9c-abaa-39cf5acb5d61"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IDCloudHost"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "150a77ac-4fce-4429-a626-92fb7e6945fd",
+                    "leftValue": "={{ $json.snippet }}",
+                    "rightValue": "Grab",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Grab"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c06068be-a490-417f-9400-e2b61c014716",
+                    "leftValue": "={{ $json.snippet }}",
+                    "rightValue": "Tokopedia",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Tokopedia"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -64,
+        16
+      ],
+      "id": "5b09c735-be59-4d31-934b-8a5eff8979e1",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "aae4ebdd-7577-4e6d-86f8-0271debf8d23",
+              "name": "=Tanggal",
+              "value": "={{$now}}",
+              "type": "string"
+            },
+            {
+              "id": "fb4d47a2-1346-4672-a80f-6f3fb45c651e",
+              "name": "=Jumlah",
+              "value": "={{ ($json.textPlain || $json.snippet || '').match(/Nominal\\s*Rp\\s*([\\d.]+)/i)?.[1]?.replace(/\\./g, '') || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "dd195fb8-09ab-4ac8-baea-66d2f3fe64ca",
+              "name": "Nominal",
+              "value": "Cloud",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        256,
+        -128
+      ],
+      "id": "0a757ec8-e15c-4082-81b8-d54309bc14e8",
+      "name": "IDCloudHost"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e601ebe0-4697-4759-844c-e2410100fefa",
+              "name": "Tanggal",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "e8e4aed0-aaf1-4944-a979-7628fd96b25c",
+              "name": "Jumlah",
+              "value": "={{ $json.textPlain.match(/Total Tarif.*?Rp\\s*([\\d\\.]+)/s)?.[1].replace(/\\./g, \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "1906cf2d-d55a-4d20-b540-0e443d81127e",
+              "name": "Nominal",
+              "value": "Grab",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        256,
+        32
+      ],
+      "id": "bba09cd3-8bd0-454c-8a19-d76688860020",
+      "name": "Grab"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "36db4487-fb48-41ff-ad5f-8a445ef766bd",
+              "name": "Tanggal",
+              "value": "={{ $json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "0b554c4b-6f3d-4e2b-bc97-2ba364868cc0",
+              "name": "=Jumlah",
+              "value": "={{ $json.textPlain.match(/Harga\\s*Rp([\\d\\.]+)/)?.[1].replace(/\\./g, \"\") }}",
+              "type": "string"
+            },
+            {
+              "id": "21a46b55-0df6-499b-8e94-5d71e02c9077",
+              "name": "=Nominal ",
+              "value": "{{ $json.textPlain.match(/Nominal\\s*(.*?)\\s*Waktu/s)?.[1].trim() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        256,
+        208
+      ],
+      "id": "27ca6092-4db0-41b8-9882-bab2d0978376",
+      "name": "Tokopedia"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1jpRQxgI727a5zl7Td3ybzs8F-vt9F2hlufCyfU8Z-iI",
+          "mode": "list",
+          "cachedResultName": "Salinan dari Pencatat Keuangan dari Email",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jpRQxgI727a5zl7Td3ybzs8F-vt9F2hlufCyfU8Z-iI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1jpRQxgI727a5zl7Td3ybzs8F-vt9F2hlufCyfU8Z-iI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Tangal": "={{ $json.Tanggal}}",
+            "Jumlah": "={{ $json.Jumlah }}",
+            "Produk": "={{ $json.Nominal }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Tangal",
+              "displayName": "Tangal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Jumlah",
+              "displayName": "Jumlah",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Produk",
+              "displayName": "Produk",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        912,
+        16
+      ],
+      "id": "df6d713b-8d67-4e6f-a5c4-6ed6e32403fb",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "IDCloudHost",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Grab",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Tokopedia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Grab": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IDCloudHost": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tokopedia": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5d120732-e49f-4c22-8460-c07a58567681",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  },
+  "nodeGroups": [],
+  "id": "HgkojWDNJLeRqymY",
+  "tags": []
+}
