@@ -1,0 +1,292 @@
+{
+  "name": "Tugas 12 Oktober",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -416,
+        -16
+      ],
+      "id": "f2f97fc9-a793-4c18-9e5c-75c26a0382bc",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code node mode: Run Once for All Items\n// DEBUG = false: hanya keluarkan baris Pending yang sudah jatuh tempo.\n// DEBUG = true : keluarkan semua baris beserta alasan kenapa diproses/dilewati.\nconst DEBUG = true;\nconst ZONE = 'Asia/Jakarta';\nconst items = $input.all();\nconst now = DateTime.now().setZone(ZONE);\n\nfunction normalizeKey(value) {\n  return String(value ?? '').trim().toLowerCase().replace(/[\\s_-]+/g, '');\n}\n\nfunction getField(row, fieldName) {\n  const wanted = normalizeKey(fieldName);\n  const key = Object.keys(row).find(k => normalizeKey(k) === wanted);\n  return key === undefined ? undefined : row[key];\n}\n\nfunction invalidDate() {\n  return DateTime.invalid('Unrecognized date/time value');\n}\n\nfunction parseDate(value) {\n  if (value === undefined || value === null || String(value).trim() === '') return invalidDate();\n\n  // Google Sheets serial date: integer days since 1899-12-30.\n  if (typeof value === 'number' && Number.isFinite(value)) {\n    const base = DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: ZONE });\n    return base.plus({ days: Math.floor(value) }).startOf('day');\n  }\n\n  if (value instanceof Date) {\n    const parsed = DateTime.fromJSDate(value, { zone: ZONE });\n    return parsed.isValid ? parsed.startOf('day') : invalidDate();\n  }\n\n  const s = String(value).trim();\n  const iso = DateTime.fromISO(s, { zone: ZONE });\n  if (iso.isValid) return iso.startOf('day');\n\n  // Prioritas format Indonesia: dd/MM/yyyy, kemudian format umum lainnya.\n  const formats = [\n    'd/M/yyyy', 'dd/MM/yyyy',\n    'd-M-yyyy', 'dd-MM-yyyy',\n    'yyyy/M/d', 'yyyy-MM-dd',\n    'M/d/yyyy', 'MM/dd/yyyy',\n    'd.M.yyyy', 'dd.MM.yyyy'\n  ];\n  for (const format of formats) {\n    const parsed = DateTime.fromFormat(s, format, { zone: ZONE, locale: 'en' });\n    if (parsed.isValid) return parsed.startOf('day');\n  }\n\n  // Numeric serial date sometimes arrives as a string.\n  if (/^\\d+(?:\\.\\d+)?$/.test(s)) {\n    const serial = Number(s);\n    if (Number.isFinite(serial) && serial >= 1) {\n      const base = DateTime.fromObject({ year: 1899, month: 12, day: 30 }, { zone: ZONE });\n      return base.plus({ days: Math.floor(serial) }).startOf('day');\n    }\n  }\n  return invalidDate();\n}\n\nfunction parseTime(value) {\n  if (value === undefined || value === null || String(value).trim() === '') return null;\n\n  // Google Sheets time serial: fraction of a 24-hour day (e.g. 0.5 = 12:00).\n  if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value < 1) {\n    let seconds = Math.round(value * 86400) % 86400;\n    return {\n      hour: Math.floor(seconds / 3600),\n      minute: Math.floor((seconds % 3600) / 60),\n      second: seconds % 60,\n      millisecond: 0\n    };\n  }\n\n  let s = String(value).trim();\n  if (/^\\d+(?:\\.\\d+)?$/.test(s)) {\n    const numeric = Number(s);\n    if (Number.isFinite(numeric) && numeric >= 0 && numeric < 1) {\n      let seconds = Math.round(numeric * 86400) % 86400;\n      return {\n        hour: Math.floor(seconds / 3600),\n        minute: Math.floor((seconds % 3600) / 60),\n        second: seconds % 60,\n        millisecond: 0\n      };\n    }\n  }\n\n  if (/^\\d{1,2}\\.\\d{2}(?:\\.\\d{2})?$/.test(s)) s = s.replace(/\\./g, ':');\n  const upper = s.toUpperCase().replace(/\\s+/g, ' ');\n  const iso = DateTime.fromISO(`1970-01-01T${s}`, { zone: ZONE });\n  if (iso.isValid) {\n    return { hour: iso.hour, minute: iso.minute, second: iso.second, millisecond: iso.millisecond };\n  }\n\n  const formats = [\n    'H:mm', 'HH:mm', 'H:mm:ss', 'HH:mm:ss',\n    'h:mm a', 'hh:mm a', 'h:mm:ss a', 'hh:mm:ss a',\n    'h a', 'hh a'\n  ];\n  for (const format of formats) {\n    const parsed = DateTime.fromFormat(upper, format, { zone: ZONE, locale: 'en' });\n    if (parsed.isValid) {\n      return { hour: parsed.hour, minute: parsed.minute, second: parsed.second, millisecond: parsed.millisecond };\n    }\n  }\n  return null;\n}\n\nfunction describeDateTime(dt) {\n  return dt && dt.isValid ? dt.toISO() : null;\n}\n\nif (items.length === 0) {\n  return DEBUG ? [{ json: { _schedulerDebug: 'Tidak ada item masuk dari Google Sheets. Periksa output node Get row(s) in sheet.' } }] : [];\n}\n\nconst dueItems = [];\nconst debugItems = [];\n\nitems.forEach((item, index) => {\n  const row = item.json ?? {};\n  const rawStatus = getField(row, 'Status');\n  const rawDate = getField(row, 'Scheduled Date');\n  const rawTime = getField(row, 'Scheduled Time');\n  const status = String(rawStatus ?? '').trim().toLowerCase();\n  const date = parseDate(rawDate);\n  const time = parseTime(rawTime);\n\n  let scheduled = null;\n  let reason = '';\n  let isDue = false;\n\n  if (status !== 'pending') {\n    reason = `Status bukan Pending (nilai terbaca: ${String(rawStatus ?? '(kosong)')})`;\n  } else if (rawDate === undefined || rawDate === null || String(rawDate).trim() === '') {\n    reason = 'Kolom Scheduled Date kosong/tidak ditemukan. Periksa nama header di Google Sheets.';\n  } else if (!date.isValid) {\n    reason = `Scheduled Date tidak bisa diparse: ${String(rawDate)}`;\n  } else if (rawTime === undefined || rawTime === null || String(rawTime).trim() === '') {\n    reason = 'Kolom Scheduled Time kosong/tidak ditemukan. Periksa nama header di Google Sheets.';\n  } else if (!time) {\n    reason = `Scheduled Time tidak bisa diparse: ${String(rawTime)}`;\n  } else {\n    scheduled = date.set(time).setZone(ZONE);\n    isDue = scheduled.isValid && scheduled.toMillis() <= now.toMillis();\n    reason = !scheduled.isValid\n      ? 'Gabungan tanggal dan waktu tidak valid.'\n      : isDue\n        ? 'READY: status Pending dan jadwal sudah jatuh tempo.'\n        : `Belum waktunya; jadwal ${scheduled.toFormat('yyyy-LL-dd HH:mm:ss')} WIB, sekarang ${now.toFormat('yyyy-LL-dd HH:mm:ss')} WIB.`;\n  }\n\n  if (isDue) dueItems.push(item);\n\n  if (DEBUG) {\n    debugItems.push({\n      json: {\n        ...row,\n        _schedulerDebug: {\n          inputItem: index,\n          statusRead: rawStatus ?? null,\n          scheduledDateRead: rawDate ?? null,\n          scheduledTimeRead: rawTime ?? null,\n          parsedScheduledAt: describeDateTime(scheduled),\n          nowJakarta: now.toISO(),\n          isDue,\n          reason\n        }\n      },\n      pairedItem: { item: index }\n    });\n  }\n});\n\nreturn DEBUG ? debugItems : dueItems;\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        32,
+        -16
+      ],
+      "id": "3c8ca3d8-3729-44d0-897a-95482d541b01",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "chatId": "7418293285",
+        "text": "={{ $json.Content }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        256,
+        -16
+      ],
+      "id": "1c444a43-615b-42be-8dbb-b08ba2435da2",
+      "name": "Send a text message",
+      "webhookId": "024659c3-1e5e-41ef-bb85-eca0f2686856",
+      "credentials": {
+        "telegramApi": {
+          "id": "beC0GBxzqKdrd96a",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b5089014-5f17-4571-912d-4ad806549877",
+              "name": "row_number",
+              "value": "={{ $('Code in JavaScript').item.json.row_number }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        480,
+        -16
+      ],
+      "id": "3dfc359c-396d-462b-bb67-5f088bf7bdec",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1HQ6B-MKJOf8UxUSmKGgjgQYWNg0FV2qKXv92WpwMgjQ",
+          "mode": "list",
+          "cachedResultName": "Salinan dari Auto Posting Scheduler",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HQ6B-MKJOf8UxUSmKGgjgQYWNg0FV2qKXv92WpwMgjQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HQ6B-MKJOf8UxUSmKGgjgQYWNg0FV2qKXv92WpwMgjQ/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID": "={{ $json.row_number }}",
+            "Status": "Published"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Content",
+              "displayName": "Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Scheduled Date",
+              "displayName": "Scheduled Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Scheduled Time",
+              "displayName": "Scheduled Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        704,
+        -16
+      ],
+      "id": "9874538a-4556-458a-ac17-39243c840fad",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1HQ6B-MKJOf8UxUSmKGgjgQYWNg0FV2qKXv92WpwMgjQ",
+          "mode": "list",
+          "cachedResultName": "Salinan dari Auto Posting Scheduler",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HQ6B-MKJOf8UxUSmKGgjgQYWNg0FV2qKXv92WpwMgjQ/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HQ6B-MKJOf8UxUSmKGgjgQYWNg0FV2qKXv92WpwMgjQ/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -192,
+        -16
+      ],
+      "id": "03c035c9-e742-4066-baec-08dca725bacc",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "e6923225-2bae-4dad-9e7a-fcb375ebe1d5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  },
+  "nodeGroups": [],
+  "id": "xVsn39ot2ombRNp2",
+  "tags": []
+}
