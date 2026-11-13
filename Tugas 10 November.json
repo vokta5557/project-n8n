@@ -1,0 +1,343 @@
+{
+  "name": "Tugas 10 November",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c32e2f1a-3714-4851-9513-2d2ecaf56080",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1dhovTzBBwa_xFYZsKhsZoOyKgqkX2ccDj-8Jr6tcn3c",
+          "mode": "list",
+          "cachedResultName": "Salinan dari Data Dummy Survey Kepuasan Karyawan",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dhovTzBBwa_xFYZsKhsZoOyKgqkX2ccDj-8Jr6tcn3c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dhovTzBBwa_xFYZsKhsZoOyKgqkX2ccDj-8Jr6tcn3c/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        0
+      ],
+      "id": "9cf93285-4708-47b6-b3e3-889f69756f0a",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop semua baris data dari Google Sheet\nfor (const item of items) {\n  // Ambil data feedback dari kolom B\n  const feedbackText = item.json.feedback;\n\n  // Lewati baris jika feedback kosong\n  if (!feedbackText) continue;\n\n  // Buat Prompt Khusus.\n  // Kita minta output JSON agar mudah diolah mesin.\n  const prompt = `\n  Analyze this employee feedback in Indonesian: \"${feedbackText}\"\n\n  Tasks:\n  1. Determine sentiment (POSITIVE, NEUTRAL, NEGATIVE).\n  2. Categorize the issue (e.g., Facility, Management, Salary, Workload, Training).\n  3. Suggest a quick action (max 5 words).\n\n  You must output ONLY valid JSON in this format:\n  {\n    \"sentiment\": \"...\",\n    \"category\": \"...\",\n    \"action_plan\": \"...\"\n  }\n  `;\n\n  // Simpan prompt ke property baru 'ai_prompt' untuk dikirim ke node HTTP Request\n  item.json.ai_prompt = prompt;\n}\n\nreturn items;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ],
+      "id": "b6c294d0-4c09-4398-b788-94272ebd2c9b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following employee feedback in Indonesian:\n\"{{ $json.feedback }}\"\n\nContext: You are a Senior HR Specialist.\n\n",
+        "hasOutputParser": true,
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        928,
+        16
+      ],
+      "id": "dde9dd50-5594-401d-9e7b-8f5d6408ed03",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        672,
+        0
+      ],
+      "id": "6dd63fef-8981-4a1b-8f81-e925538daf77",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"sentiment\": {\n      \"type\": \"string\",\n      \"enum\": [\"POSITIVE\", \"NEUTRAL\", \"NEGATIVE\"],\n      \"description\": \"The emotional tone of the feedback\"\n    },\n    \"category\": {\n      \"type\": \"string\",\n      \"enum\": [\"Facilities\", \"Management\", \"Salary\", \"Workload\", \"Training\", \"Other\"],\n      \"description\": \"The main topic of the complaint/feedback\"\n    },\n    \"action_plan\": {\n      \"type\": \"string\",\n      \"description\": \"A short recommended action in Indonesian (max 10 words)\"\n    }\n  },\n  \"required\": [\"sentiment\", \"category\", \"action_plan\"]\n}\n\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        992,
+        256
+      ],
+      "id": "5f4521aa-b26b-4b1d-a01a-1ae3e32dba19",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1dhovTzBBwa_xFYZsKhsZoOyKgqkX2ccDj-8Jr6tcn3c",
+          "mode": "list",
+          "cachedResultName": "Salinan dari Data Dummy Survey Kepuasan Karyawan",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dhovTzBBwa_xFYZsKhsZoOyKgqkX2ccDj-8Jr6tcn3c/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1dhovTzBBwa_xFYZsKhsZoOyKgqkX2ccDj-8Jr6tcn3c/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "employee_id": "={{ $('Loop Over Items').item.json.employee_id }}",
+            "sentiment": "={{ $json.output.sentiment }}",
+            "category": "={{ $json.output.category }}",
+            "action_plan": "={{ $json.output.action_plan }}"
+          },
+          "matchingColumns": [
+            "employee_id"
+          ],
+          "schema": [
+            {
+              "id": "employee_id",
+              "displayName": "employee_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "feedback",
+              "displayName": "feedback",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "sentiment",
+              "displayName": "sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "action_plan",
+              "displayName": "action_plan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1296,
+        16
+      ],
+      "id": "0ad67c51-da35-47aa-84b5-53a1504db05e",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        928,
+        448
+      ],
+      "id": "5189941f-0523-4614-b04a-dd9b8b80a00f",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "Bqo8i0qJKCe3xz4D",
+          "name": "OpenAI account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "236bf61a-4e49-46bb-91b3-833e0afff0b6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  },
+  "nodeGroups": [],
+  "id": "yh4HO2DP0gQeaGJ7",
+  "tags": []
+}
