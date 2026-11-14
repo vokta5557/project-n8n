@@ -1,0 +1,662 @@
+{
+  "name": "Tugas 6 November - Approval Handler",
+  "nodes": [
+    {
+      "id": "707ba98a-e786-4add-a405-83163706d8b0",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "2f5f553e-b467-4d3a-ad67-2b7d633bc981",
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "approval-handler",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "84fe9250-41c8-4046-902f-e946c1c0a88e",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.4,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 4
+          },
+          "conditions": [
+            {
+              "id": "739d94fb-7ff7-4e85-ad99-7a118fd8090a",
+              "leftValue": "={{ $json.query.status }}",
+              "rightValue": "approved",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "fa142cd9-8783-4978-b5fc-db1ce3263f7e",
+      "name": "Cari Data Karyawan",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        500,
+        -140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      },
+      "parameters": {
+        "resource": "sheet",
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1ualEnixe3wypW22R3EurgKIeBo26_cc3F03O-1noO5A",
+          "cachedResultName": "Cuti Karyawan"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 2107630911,
+          "cachedResultName": "DB_Karyawan"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Email",
+              "lookupValue": "={{ $json.query.email }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2cfcd693-c054-4973-b503-d7c3ef69a698",
+      "name": "Hitung Saldo Baru",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        740,
+        -140
+      ],
+      "parameters": {
+        "jsCode": "const webhookData = $('Webhook').first().json.query;\nconst daysRequested = parseInt(webhookData.days);\n\nconst currentData = items[0].json;\nconst currentBalance = parseInt(currentData.Saldo_Cuti);\n\nconst newBalance = currentBalance - daysRequested;\n\nreturn [{\n  json: {\n    ...currentData,\n    newBalance: newBalance\n  }\n}];"
+      }
+    },
+    {
+      "id": "655efd30-8629-4caa-83a6-f67d33ef8534",
+      "name": "Update Saldo Cuti",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        980,
+        -140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      },
+      "parameters": {
+        "resource": "sheet",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1ualEnixe3wypW22R3EurgKIeBo26_cc3F03O-1noO5A",
+          "cachedResultName": "Cuti Karyawan"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 2107630911,
+          "cachedResultName": "DB_Karyawan"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.Email }}",
+            "Saldo_Cuti": "={{ $json.newBalance }}"
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Nama_Lengkap",
+              "displayName": "Nama_Lengkap",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Saldo_Cuti",
+              "displayName": "Saldo_Cuti",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Manager_Email",
+              "displayName": "Manager_Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "2c7e3cb2-71e0-49e4-8a05-a8531bded97b",
+      "name": "Update Logs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1220,
+        -140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      },
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1ualEnixe3wypW22R3EurgKIeBo26_cc3F03O-1noO5A",
+          "cachedResultName": "Cuti Karyawan"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 384962524,
+          "cachedResultName": "Log Pengajuan"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID_Request": "={{ $('Webhook').item.json.query.id }}",
+            "Status": "Approved"
+          },
+          "matchingColumns": [
+            "ID_Request"
+          ],
+          "schema": [
+            {
+              "id": "ID_Request",
+              "displayName": "ID_Request",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email_Karyawan",
+              "displayName": "Email_Karyawan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Jenis_Cuti",
+              "displayName": "Jenis_Cuti",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Tanggal_Mulai",
+              "displayName": "Tanggal_Mulai",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Tanggal_Selesai",
+              "displayName": "Tanggal_Selesai",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Durasi",
+              "displayName": "Durasi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Alasan",
+              "displayName": "Alasan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0da2830d-6982-485c-9b14-e19b37e15dd6",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1460,
+        -140
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Berhasil! Pengajuan cuti telah disetujui. Saldo karyawan sudah dipotong otomatis.",
+        "options": {}
+      }
+    },
+    {
+      "id": "60c4fa24-7cc7-4f0b-9a8c-c417696a91c5",
+      "name": "Cuti Diterima",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1700,
+        -140
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mpM8IvdeGSbMMoXE",
+          "name": "Gmail account"
+        }
+      },
+      "parameters": {
+        "sendTo": "={{ $('Update Saldo Cuti').item.json.Email }}",
+        "subject": "✅ Pengajuan Cuti DISETUJUI",
+        "emailType": "html",
+        "message": "=<p>Halo,</p>\n<p>Kabar baik! Pengajuan cuti Anda telah DISETUJUI oleh Manager.</p>\n<p>Detail:<br>\n- Durasi: {{ $('Webhook').item.json.query.days }} Hari<br>\n- Status: APPROVED<br>\n- Saldo Cuti: Telah dipotong otomatis.</p>\n<p>Terima kasih,<br>HR System</p>",
+        "options": {}
+      },
+      "webhookId": "23afb783-aab7-4432-ba27-fdd2400d28c9"
+    },
+    {
+      "id": "1388ddb6-58b5-422e-9086-f15f307abc49",
+      "name": "Cuti Ditolak",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        140
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "mpM8IvdeGSbMMoXE",
+          "name": "Gmail account"
+        }
+      },
+      "parameters": {
+        "sendTo": "={{ $json.query.email }}",
+        "subject": "Status Pengajuan Cuti: DITOLAK",
+        "emailType": "html",
+        "message": "=<p>Halo,</p>\n<p>Mohon maaf, pengajuan cuti Anda untuk durasi {{ $('Webhook').item.json.query.days }} hari telah DITOLAK oleh Manager.</p>\n<p>Silakan hubungi atasan Anda untuk diskusi lebih lanjut.</p>\n<p>Salam,<br>HR System</p>",
+        "options": {}
+      },
+      "webhookId": "4adc4630-b11a-4bc9-a490-f897207a5ce6"
+    },
+    {
+      "id": "2cea9cad-3dcb-40c5-a22a-94a6fd14963e",
+      "name": "Respond to Webhook1",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        740,
+        140
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Konfirmasi: Pengajuan cuti telah berhasil DITOLAK. Tidak ada saldo yang dipotong.",
+        "options": {}
+      }
+    },
+    {
+      "id": "17f2e7dd-105b-4dcc-b731-26f094c9eee4",
+      "name": "Update Logs1",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        980,
+        140
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "CZkSyf0ShwQs4Mdw",
+          "name": "Google Sheets account"
+        }
+      },
+      "parameters": {
+        "resource": "sheet",
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1ualEnixe3wypW22R3EurgKIeBo26_cc3F03O-1noO5A",
+          "cachedResultName": "Cuti Karyawan"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": 384962524,
+          "cachedResultName": "Log Pengajuan"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "ID_Request": "={{ $('Webhook').item.json.query.id }}",
+            "Status": "Rejected"
+          },
+          "matchingColumns": [
+            "ID_Request"
+          ],
+          "schema": [
+            {
+              "id": "ID_Request",
+              "displayName": "ID_Request",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email_Karyawan",
+              "displayName": "Email_Karyawan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Jenis_Cuti",
+              "displayName": "Jenis_Cuti",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Tanggal_Mulai",
+              "displayName": "Tanggal_Mulai",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Tanggal_Selesai",
+              "displayName": "Tanggal_Selesai",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Durasi",
+              "displayName": "Durasi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Alasan",
+              "displayName": "Alasan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Cari Data Karyawan",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Cuti Ditolak",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cari Data Karyawan": {
+      "main": [
+        [
+          {
+            "node": "Hitung Saldo Baru",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hitung Saldo Baru": {
+      "main": [
+        [
+          {
+            "node": "Update Saldo Cuti",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Saldo Cuti": {
+      "main": [
+        [
+          {
+            "node": "Update Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Logs": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Cuti Diterima",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cuti Ditolak": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Update Logs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "424c0bae-139c-4567-9dff-089a380bf83b",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "y5MEemujPqiR1opC",
+  "tags": []
+}
